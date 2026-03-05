@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  # ---- PostgreSQL Database ----
+  postgres:
+    image: postgres:16-alpine
+    container_name: rocket_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rocket_user
+      POSTGRES_PASSWORD: rocket_pass
+      POSTGRES_DB: rocket_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - rocket_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rocket_user -d rocket_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Redis Cache ----
+  redis:
+    image: redis:7-alpine
+    container_name: rocket_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - rocket_redis_data:/data
+    command: redis-server --appendonly yes
+
+  # ---- Prisma Studio (GUI Database, hanya untuk development) ----
+  prisma_studio:
+    image: node:20-alpine
+    container_name: rocket_prisma_studio
+    working_dir: /app
+    volumes:
+      - ./apps/backend:/app
+    command: npx prisma studio
+    ports:
+      - "5555:5555"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://rocket_user:rocket_pass@postgres:5432/rocket_db?schema=public"
+    profiles: [ "studio" ]
+
+volumes:
+  rocket_postgres_data:
+  rocket_redis_data:

@@ -1,0 +1,883 @@
+// ================================================================
+// PRISMA SCHEMA — Aplikasi ROCKET
+// PT ASABRI (Persero) | Bidang Komunikasi dan Protokoler
+// ================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================================================
+// ENUM DEFINITIONS
+// ================================================================
+
+enum UserRole {
+  SUPER_USER
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+}
+
+enum ProjectStatus {
+  FINISHED
+  ON_GOING
+  TO_DO_NEXT
+  NEED_FOLLOW_UP
+  CANCELLED
+  RESCHEDULED
+  REVISI
+}
+
+enum ReviewStatus {
+  PENDING
+  REVIEWED
+  APPROVED
+  REVISION
+}
+
+enum NotificationType {
+  DUE_DATE_REMINDER
+  REVIEW_REQUESTED
+  REVIEW_TO_KADIV
+  REVIEW_APPROVED
+  REVIEW_REVISION
+  NEW_COMMENT
+  RISK_ESCALATION
+  ACTION_ITEM_ASSIGNED
+  KPI_ALERT
+}
+
+enum ReportType {
+  WEEKLY
+  MONTHLY
+}
+
+// K5 Enums
+enum RecurringPattern {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+// K6 Enums
+enum KpiPeriodType {
+  ANNUAL
+  SEMESTER
+  QUARTERLY
+}
+
+enum KpiCalcMethod {
+  AUTO_COUNT_FINISHED
+  AUTO_PERCENTAGE
+  MANUAL
+}
+
+enum ActionItemStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+// K7 Enums
+enum AuditAnomalyType {
+  PROJECT_NO_APPROVAL_DOC
+  LARGE_REALISASI_NO_DOCS
+  BUDGET_OVERRUN
+  APPROVAL_BYPASSED
+  STALE_PROJECT
+}
+
+// ================================================================
+// CLUSTER 1: USER & AUTH
+// ================================================================
+
+model User {
+  id           String    @id @default(uuid())
+  ad_username  String    @unique
+  email        String    @unique
+  full_name    String
+  role         UserRole  @default(LEVEL_3)
+  is_active    Boolean   @default(true)
+  max_active_projects Int @default(5)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  // Existing relations
+  projects_as_pic      Project[]          @relation("ProjectPIC")
+  sub_projects_as_pic  SubProject[]       @relation("SubProjectPIC")
+  reviews_given        ProjectReview[]    @relation("ReviewerUser")
+  realisasi_inputs     RealisasiAnggaran[]
+  notifications        Notification[]
+  comments_authored    ProjectComment[]   @relation("CommentAuthor")
+  activity_logs        ActivityLog[]
+  notification_preference UserNotificationPreference?
+  templates_created    ProjectTemplate[]  @relation("TemplateCreator")
+  workload_snapshots   WorkloadSnapshot[]
+  historical_stats     PicHistoricalStats?
+  push_subscription    PushSubscription?
+  exec_tokens_created  ExecDashboardToken[]
+
+  // K5: Document Management
+  documents_uploaded   Document[]        @relation("DocumentUploader")
+  versions_uploaded    DocumentVersion[] @relation("VersionUploader")
+  documents_linked     ProjectDocument[] @relation("DocumentLinker")
+
+  // K5: Recurring
+  recurring_configs    RecurringConfig[]
+
+  // K6: KPI
+  kpi_targets_created  KpiTarget[]
+  kpi_links_created    KpiProjectLink[]
+  kpi_notes_created    KpiProgressNote[]
+
+  // K6: Meeting
+  meetings_created       Meeting[]
+  action_items_assigned  ActionItem[] @relation("ActionItemAssignee")
+  action_items_converted ActionItem[] @relation("ActionItemConverter")
+
+  // K6: Signature
+  signature              UserSignature?
+  approval_documents     ApprovalDocument[]
+
+  // K7: API Keys
+  api_keys_created       ApiKey[]
+  webhook_endpoints      WebhookEndpoint[]
+
+  // K7: Audit
+  audit_templates_created AuditReportTemplate[]
+  audit_reports_generated GeneratedAuditReport[]
+
+  @@map("users")
+}
+
+// ================================================================
+// CLUSTER 2: WORKING TRACKER
+// ================================================================
+
+model Project {
+  id              String        @id @default(uuid())
+  name            String
+  working_folder  String?
+  update_notes    String?       @db.Text
+  due_date        DateTime
+  status          ProjectStatus @default(TO_DO_NEXT)
+  month           Int
+  year            Int
+  client          String?
+  keterangan      String?       @db.Text
+  document_url    String?
+  color_tag       String?       @default("#0D2B6B")
+  board_order     Int           @default(0)
+
+  pic_user_id     String
+  pic             User          @relation("ProjectPIC", fields: [pic_user_id], references: [id])
+
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+  deleted_at      DateTime?
+
+  sub_projects    SubProject[]
+  reviews         ProjectReview[]
+  comments        ProjectComment[]
+  risk_score      ProjectRiskScore?
+
+  // K5: Documents
+  documents       ProjectDocument[]
+
+  // K5: Recurring
+  recurring_logs  RecurringExecutionLog[]
+
+  // K6: KPI
+  kpi_links       KpiProjectLink[]
+
+  // K6: Meeting
+  source_action_item ActionItem?
+
+  @@index([pic_user_id])
+  @@index([status])
+  @@index([month, year])
+  @@index([due_date])
+  @@index([deleted_at])
+  @@map("projects")
+}
+
+model SubProject {
+  id            String        @id @default(uuid())
+  name          String
+  due_date      DateTime
+  status        ProjectStatus @default(TO_DO_NEXT)
+  update_notes  String?       @db.Text
+  keterangan    String?       @db.Text
+
+  project_id    String
+  project       Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  pic_user_id   String
+  pic           User          @relation("SubProjectPIC", fields: [pic_user_id], references: [id])
+
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  @@index([project_id])
+  @@index([pic_user_id])
+  @@map("sub_projects")
+}
+
+model ProjectReview {
+  id            String        @id @default(uuid())
+
+  project_id    String
+  project       Project       @relation(fields: [project_id], references: [id])
+
+  reviewer_id   String
+  reviewer      User          @relation("ReviewerUser", fields: [reviewer_id], references: [id])
+
+  status        ReviewStatus
+  comment       String?       @db.Text
+  review_stage  Int           @default(1)
+
+  reviewed_at   DateTime      @default(now())
+
+  // K6: e-Signature
+  approval_document ApprovalDocument?
+
+  @@index([project_id])
+  @@index([status, review_stage])
+  @@map("project_reviews")
+}
+
+// ================================================================
+// KELOMPOK 1.1: KOMENTAR & DISKUSI
+// ================================================================
+
+model ProjectComment {
+  id         String   @id @default(uuid())
+  project_id String
+  project    Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  author_id  String
+  author     User     @relation("CommentAuthor", fields: [author_id], references: [id])
+  message    String   @db.Text
+  parent_id  String?
+  parent     ProjectComment?  @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies    ProjectComment[] @relation("CommentReplies")
+  edited_at  DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([project_id])
+  @@index([author_id])
+  @@map("project_comments")
+}
+
+// ================================================================
+// KELOMPOK 1.2: ACTIVITY LOG
+// ================================================================
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id])
+  entity_type String
+  entity_id   String
+  action      String
+  old_value   Json?
+  new_value   Json?
+  description String?
+  created_at  DateTime @default(now())
+
+  @@index([entity_type, entity_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("activity_logs")
+}
+
+// ================================================================
+// KELOMPOK 1.3: NOTIFIKASI PREFERENCES
+// ================================================================
+
+model UserNotificationPreference {
+  id      String @id @default(uuid())
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [id])
+  reminder_days_before Int @default(3)
+  email_notifications_enabled Boolean @default(true)
+  reminder_hour Int @default(7)
+  weekly_digest_enabled Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("user_notification_preferences")
+}
+
+// ================================================================
+// KELOMPOK 2.2: TEMPLATE PROJECT
+// ================================================================
+
+model ProjectTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  is_active   Boolean  @default(true)
+  created_by_id String
+  created_by    User   @relation("TemplateCreator", fields: [created_by_id], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  sub_templates SubProjectTemplate[]
+
+  @@map("project_templates")
+}
+
+model SubProjectTemplate {
+  id           String          @id @default(uuid())
+  template_id  String
+  template     ProjectTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  name         String
+  day_offset   Int @default(0)
+  keterangan   String?
+
+  @@map("sub_project_templates")
+}
+
+// ================================================================
+// KELOMPOK 2.3: LAPORAN OTOMATIS
+// ================================================================
+
+model GeneratedReport {
+  id           String @id @default(uuid())
+  type         ReportType
+  period_label String
+  period_start DateTime
+  period_end   DateTime
+  file_url     String
+  is_sent      Boolean @default(false)
+  sent_at      DateTime?
+  created_at DateTime @default(now())
+
+  @@map("generated_reports")
+}
+
+// ================================================================
+// CLUSTER 3: ANGGARAN
+// ================================================================
+
+model AnggaranPos {
+  id              String    @id @default(uuid())
+  nama_pos        String
+  total_anggaran  Decimal   @db.Decimal(15, 2)
+  tahun           Int
+  keterangan      String?   @db.Text
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  realisasi       RealisasiAnggaran[]
+
+  @@map("anggaran_pos")
+}
+
+model RealisasiAnggaran {
+  id              String      @id @default(uuid())
+
+  anggaran_pos_id String
+  anggaran_pos    AnggaranPos @relation(fields: [anggaran_pos_id], references: [id])
+
+  pic_user_id     String
+  pic             User        @relation(fields: [pic_user_id], references: [id])
+
+  kegiatan        String
+  jumlah          Decimal     @db.Decimal(15, 2)
+  nd_realisasi    String?
+  dokumen_url     String?
+  tanggal_input   DateTime    @default(now())
+
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  @@index([anggaran_pos_id])
+  @@index([tanggal_input])
+  @@map("realisasi_anggaran")
+}
+
+// ================================================================
+// KELOMPOK 3.2: WORKLOAD SNAPSHOTS
+// ================================================================
+
+model WorkloadSnapshot {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id])
+  active_count Int
+  snapshot_date DateTime @default(now())
+
+  @@index([user_id, snapshot_date])
+  @@map("workload_snapshots")
+}
+
+// ================================================================
+// KELOMPOK 3.3: TEAMS WEBHOOK
+// ================================================================
+
+model TeamsWebhookConfig {
+  id           String  @id @default(uuid())
+  channel_name String
+  webhook_url  String  @db.Text
+  is_active    Boolean @default(true)
+  notification_types String[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("teams_webhook_configs")
+}
+
+// ================================================================
+// KELOMPOK 3.4: PWA PUSH SUBSCRIPTIONS
+// ================================================================
+
+model PushSubscription {
+  id           String   @id @default(uuid())
+  user_id      String   @unique
+  user         User     @relation(fields: [user_id], references: [id])
+  subscription String   @db.Text
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("push_subscriptions")
+}
+
+// ================================================================
+// CLUSTER 4: KONTEN & NOTIFIKASI
+// ================================================================
+
+model LinkPenting {
+  id          String    @id @default(uuid())
+  nama_link   String
+  url         String    @db.Text
+  urutan      Int
+  is_active   Boolean   @default(true)
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@map("link_penting")
+}
+
+model Notification {
+  id          String            @id @default(uuid())
+
+  user_id     String
+  user        User              @relation(fields: [user_id], references: [id])
+
+  type        NotificationType
+  title       String
+  message     String            @db.Text
+  is_read     Boolean           @default(false)
+
+  project_id  String?
+
+  created_at  DateTime          @default(now())
+
+  @@index([user_id, is_read])
+  @@map("notifications")
+}
+
+// ================================================================
+// KELOMPOK 4.1: RISK ANALYSIS
+// ================================================================
+
+model ProjectRiskScore {
+  id          String   @id @default(uuid())
+  project_id  String   @unique
+  project     Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  risk_score  Float
+  stagnation_score    Float
+  pic_history_score   Float
+  complexity_score    Float
+  timeline_score      Float
+  risk_level  String
+  calculated_at DateTime @default(now())
+
+  @@index([risk_score])
+  @@map("project_risk_scores")
+}
+
+model PicHistoricalStats {
+  id                      String @id @default(uuid())
+  user_id                 String @unique
+  user                    User   @relation(fields: [user_id], references: [id])
+  total_completed         Int    @default(0)
+  total_rescheduled       Int    @default(0)
+  avg_completion_days     Float  @default(0)
+  reschedule_rate         Float  @default(0)
+  last_updated            DateTime @default(now())
+
+  @@map("pic_historical_stats")
+}
+
+// ================================================================
+// KELOMPOK 4.2: EXEC DASHBOARD
+// ================================================================
+
+model ExecDashboardToken {
+  id          String    @id @default(uuid())
+  token       String    @unique @default(uuid())
+  label       String
+  is_active   Boolean   @default(true)
+  expires_at  DateTime?
+  created_by_id String
+  created_by    User   @relation(fields: [created_by_id], references: [id])
+  created_at    DateTime @default(now())
+
+  @@map("exec_dashboard_tokens")
+}
+
+// ================================================================
+// KELOMPOK 5.1: DOCUMENT MANAGEMENT
+// ================================================================
+
+model Document {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?  @db.Text
+  category     String?
+  uploaded_by_id String
+  uploaded_by    User   @relation("DocumentUploader", fields: [uploaded_by_id], references: [id])
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  versions     DocumentVersion[]
+  project_links ProjectDocument[]
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id             String   @id @default(uuid())
+  document_id    String
+  document       Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  version_number Int
+  file_name      String
+  file_path      String
+  file_size      Int
+  mime_type      String
+  change_notes   String?
+  uploaded_by_id String
+  uploaded_by    User   @relation("VersionUploader", fields: [uploaded_by_id], references: [id])
+  is_latest      Boolean  @default(true)
+  created_at     DateTime @default(now())
+
+  @@index([document_id, version_number])
+  @@map("document_versions")
+}
+
+model ProjectDocument {
+  id          String   @id @default(uuid())
+  project_id  String
+  project     Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  document_id String
+  document    Document @relation(fields: [document_id], references: [id])
+  linked_by_id String
+  linked_by    User   @relation("DocumentLinker", fields: [linked_by_id], references: [id])
+  linked_at    DateTime @default(now())
+
+  @@unique([project_id, document_id])
+  @@map("project_documents")
+}
+
+// ================================================================
+// KELOMPOK 5.3: RECURRING PROJECTS
+// ================================================================
+
+model RecurringConfig {
+  id          String @id @default(uuid())
+  name        String
+  pattern     RecurringPattern
+  day_of_week Int?
+  day_of_month Int?
+  month_in_quarter Int?
+  advance_days Int @default(7)
+  project_template Json
+  is_active    Boolean  @default(true)
+  created_by_id String
+  created_by   User     @relation(fields: [created_by_id], references: [id])
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  execution_logs RecurringExecutionLog[]
+
+  @@map("recurring_configs")
+}
+
+model RecurringExecutionLog {
+  id               String          @id @default(uuid())
+  config_id        String
+  config           RecurringConfig @relation(fields: [config_id], references: [id])
+  project_id       String?
+  project          Project?        @relation(fields: [project_id], references: [id])
+  status           String
+  error_message    String?
+  executed_at      DateTime        @default(now())
+
+  @@map("recurring_execution_logs")
+}
+
+// ================================================================
+// KELOMPOK 6.1: KPI TRACKING
+// ================================================================
+
+model KpiTarget {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?  @db.Text
+  period_year  Int
+  period_type  KpiPeriodType
+  target_value  Float
+  current_value Float   @default(0)
+  unit          String
+  higher_is_better Boolean @default(true)
+  calc_method  KpiCalcMethod
+  is_active    Boolean  @default(true)
+  created_by_id String
+  created_by   User     @relation(fields: [created_by_id], references: [id])
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  project_links KpiProjectLink[]
+  progress_notes KpiProgressNote[]
+
+  @@map("kpi_targets")
+}
+
+model KpiProjectLink {
+  id         String    @id @default(uuid())
+  kpi_id     String
+  kpi        KpiTarget @relation(fields: [kpi_id], references: [id])
+  project_id String
+  project    Project   @relation(fields: [project_id], references: [id])
+  weight     Float?
+  linked_by_id String
+  linked_by    User   @relation(fields: [linked_by_id], references: [id])
+  linked_at    DateTime @default(now())
+
+  @@unique([kpi_id, project_id])
+  @@map("kpi_project_links")
+}
+
+model KpiProgressNote {
+  id        String    @id @default(uuid())
+  kpi_id    String
+  kpi       KpiTarget @relation(fields: [kpi_id], references: [id])
+  value     Float
+  note      String    @db.Text
+  noted_at  DateTime  @default(now())
+  noted_by_id String
+  noted_by  User      @relation(fields: [noted_by_id], references: [id])
+
+  @@map("kpi_progress_notes")
+}
+
+// ================================================================
+// KELOMPOK 6.2: MEETING MANAGEMENT
+// ================================================================
+
+model Meeting {
+  id            String   @id @default(uuid())
+  title         String
+  meeting_date  DateTime
+  location      String?
+  attendees     String[]
+  summary       String?  @db.Text
+  minutes_url   String?
+  created_by_id String
+  created_by    User     @relation(fields: [created_by_id], references: [id])
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  action_items  ActionItem[]
+
+  @@map("meetings")
+}
+
+model ActionItem {
+  id          String  @id @default(uuid())
+  meeting_id  String
+  meeting     Meeting @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
+  description String  @db.Text
+  due_date    DateTime
+  assignee_id String
+  assignee    User    @relation("ActionItemAssignee", fields: [assignee_id], references: [id])
+  status      ActionItemStatus @default(OPEN)
+  converted_project_id String? @unique
+  converted_project    Project? @relation(fields: [converted_project_id], references: [id])
+  converted_at  DateTime?
+  converted_by_id String?
+  converted_by  User?   @relation("ActionItemConverter", fields: [converted_by_id], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("action_items")
+}
+
+// ================================================================
+// KELOMPOK 6.3: E-SIGNATURE
+// ================================================================
+
+model UserSignature {
+  id           String   @id @default(uuid())
+  user_id      String   @unique
+  user         User     @relation(fields: [user_id], references: [id])
+  signature_path String
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("user_signatures")
+}
+
+model ApprovalDocument {
+  id           String        @id @default(uuid())
+  review_id    String        @unique
+  review       ProjectReview @relation(fields: [review_id], references: [id])
+  document_path String
+  signed_by_id  String
+  signed_by     User        @relation(fields: [signed_by_id], references: [id])
+  signed_at     DateTime    @default(now())
+  bsre_token    String?
+  bsre_verified Boolean @default(false)
+
+  @@map("approval_documents")
+}
+
+// ================================================================
+// KELOMPOK 7.1: AD SYNC
+// ================================================================
+
+model AdGroupRoleMapping {
+  id         String   @id @default(uuid())
+  ad_group   String   @unique
+  rocket_role UserRole
+  description String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("ad_group_role_mappings")
+}
+
+model AdSyncLog {
+  id               String   @id @default(uuid())
+  sync_type        String
+  started_at       DateTime
+  completed_at     DateTime?
+  users_created    Int @default(0)
+  users_updated    Int @default(0)
+  users_deactivated Int @default(0)
+  status           String
+  error_details    String?  @db.Text
+
+  @@map("ad_sync_logs")
+}
+
+// ================================================================
+// KELOMPOK 7.2: OPEN API & WEBHOOKS
+// ================================================================
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  name        String
+  key_hash    String   @unique
+  key_prefix  String
+  scopes      String[]
+  rate_limit  Int @default(1000)
+  is_active   Boolean  @default(true)
+  last_used_at DateTime?
+  expires_at  DateTime?
+  created_by_id String
+  created_by    User   @relation(fields: [created_by_id], references: [id])
+  created_at    DateTime @default(now())
+
+  @@map("api_keys")
+}
+
+model WebhookEndpoint {
+  id          String   @id @default(uuid())
+  name        String
+  url         String   @db.Text
+  events      String[]
+  secret      String
+  is_active   Boolean  @default(true)
+  failure_count Int    @default(0)
+  created_by_id String
+  created_by    User   @relation(fields: [created_by_id], references: [id])
+  created_at    DateTime @default(now())
+  delivery_logs WebhookDeliveryLog[]
+
+  @@map("webhook_endpoints")
+}
+
+model WebhookDeliveryLog {
+  id           String          @id @default(uuid())
+  endpoint_id  String
+  endpoint     WebhookEndpoint @relation(fields: [endpoint_id], references: [id])
+  event_type   String
+  payload      Json
+  response_code Int?
+  response_body String?  @db.Text
+  duration_ms  Int?
+  status       String
+  sent_at      DateTime  @default(now())
+  next_retry_at DateTime?
+
+  @@map("webhook_delivery_logs")
+}
+
+// ================================================================
+// KELOMPOK 7.3: AUDIT & COMPLIANCE
+// ================================================================
+
+model AuditReportTemplate {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  sections     String[]
+  created_by_id String
+  created_by    User   @relation(fields: [created_by_id], references: [id])
+  created_at    DateTime @default(now())
+
+  @@map("audit_report_templates")
+}
+
+model GeneratedAuditReport {
+  id           String   @id @default(uuid())
+  template_id  String?
+  period_start DateTime
+  period_end   DateTime
+  title        String
+  file_path    String
+  generated_by_id String
+  generated_by    User @relation(fields: [generated_by_id], references: [id])
+  generated_at DateTime @default(now())
+  summary_stats Json?
+
+  @@map("generated_audit_reports")
+}
+
+model AuditAnomaly {
+  id          String   @id @default(uuid())
+  type        AuditAnomalyType
+  description String   @db.Text
+  entity_type String
+  entity_id   String
+  severity    String
+  is_resolved Boolean  @default(false)
+  resolution_note String? @db.Text
+  detected_at DateTime @default(now())
+  resolved_at DateTime?
+  resolved_by_id String?
+
+  @@map("audit_anomalies")
+}

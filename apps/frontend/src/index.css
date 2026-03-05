@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================== */
+/* Global Styles — ROCKET Aplikasi                 */
+/* =============================================== */
+
+:root {
+  --asabri-blue: #0D2B6B;
+  --asabri-gold: #C9A227;
+  --asabri-light: #E8EEF8;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #f5f7fa;
+}
+
+#root {
+  height: 100vh;
+}
+
+/* Ant Design custom overrides */
+.ant-layout-sider {
+  background: var(--asabri-blue) !important;
+}
+
+.ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-btn-primary {
+  background: var(--asabri-blue) !important;
+  border-color: var(--asabri-blue) !important;
+}
+
+.ant-btn-primary:hover {
+  background: #1a3f8f !important;
+  border-color: #1a3f8f !important;
+}
+
+/* Page transition */
+.page-fade-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
