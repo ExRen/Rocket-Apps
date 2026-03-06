@@ -36,6 +36,7 @@ import KpiPage from '@/pages/kpi/KpiPage';
 import MeetingsPage from '@/pages/meetings/MeetingsPage';
 import RecurringPage from '@/pages/recurring/RecurringPage';
 import AuditPage from '@/pages/audit/AuditPage';
+import MfaSetupPage from '@/pages/settings/MfaSetupPage';
 
 const AppRouter: React.FC = () => {
     return (
@@ -78,6 +79,7 @@ const AppRouter: React.FC = () => {
                     {/* Settings */}
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/preferences" element={<PreferencesPage />} />
+                    <Route path="/settings/mfa" element={<MfaSetupPage />} />
 
                     {/* Kelompok 5: Documents */}
                     <Route path="/documents" element={<DocumentsPage />} />

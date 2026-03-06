@@ -103,10 +103,15 @@ model User {
   id           String    @id @default(uuid())
   ad_username  String    @unique
   email        String    @unique
+  password_hash String?
   full_name    String
   role         UserRole  @default(LEVEL_3)
   is_active    Boolean   @default(true)
   max_active_projects Int @default(5)
+  mfa_enabled  Boolean   @default(false)
+  mfa_secret   String?
+  mfa_verified Boolean   @default(false)
+  password_changed_at DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
 

@@ -1,8 +1,11 @@
 import { PrismaClient, UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
+    const defaultPassword = await bcrypt.hash('Rocket@2026', 10);
+
     // --- SEED USERS ---
     const usersData = [
         { ad_username: 'andris.framono', email: 'andris.framono@asabri.co.id', full_name: 'Andris Framono', role: UserRole.LEVEL_3 },
@@ -14,16 +17,17 @@ async function main() {
         { ad_username: 'kartika.rahmadayanti', email: 'kartika.rahmadayanti@asabri.co.id', full_name: 'Kartika Rahmadayanti', role: UserRole.LEVEL_2 },
         { ad_username: 'okki.jatnika', email: 'okki.jatnika@asabri.co.id', full_name: 'Okki Jatnika', role: UserRole.LEVEL_1 },
         { ad_username: 'dwi.soelistijanto', email: 'dwi.soelistijanto@asabri.co.id', full_name: 'Dwi Soelistijanto', role: UserRole.SUPER_USER },
+        { ad_username: 'admin', email: 'admin@asabri.co.id', full_name: 'Administrator', role: UserRole.SUPER_USER },
     ];
 
     for (const user of usersData) {
         await prisma.user.upsert({
             where: { ad_username: user.ad_username },
-            update: {},
-            create: user,
+            update: { password_hash: defaultPassword },
+            create: { ...user, password_hash: defaultPassword },
         });
     }
-    console.log('✅ Users seeded.');
+    console.log('✅ Users seeded (password: Rocket@2026)');
 
     // --- SEED LINK PENTING ---
     const linksData = [
@@ -50,14 +54,7 @@ async function main() {
     ];
 
     for (const link of linksData) {
-        await prisma.linkPenting.upsert({
-            where: { id: link.nama_link }, // will miss, but that's fine — fallback to create
-            update: {},
-            create: link,
-        }).catch(async () => {
-            // If upsert fails (no unique field match), try create and ignore duplicates
-            await prisma.linkPenting.create({ data: link }).catch(() => { });
-        });
+        await prisma.linkPenting.create({ data: link }).catch(() => { });
     }
 
     console.log('✅ Link Penting seeded.');

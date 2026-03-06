@@ -63,6 +63,7 @@ const AppLayout: React.FC = () => {
     const userMenu = [
         { key: 'profile', label: 'Profile', icon: <UserOutlined />, onClick: () => navigate('/profile') },
         { key: 'preferences', label: 'Pengaturan Notifikasi', icon: <BellOutlined />, onClick: () => navigate('/preferences') },
+        { key: 'mfa', label: 'Keamanan MFA', icon: <SafetyOutlined />, onClick: () => navigate('/settings/mfa') },
         { type: 'divider' as const },
         { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, onClick: () => { logout(); navigate('/login'); } },
     ];
