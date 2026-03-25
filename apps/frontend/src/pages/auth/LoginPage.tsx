@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, Typography, message, Space, Divider } from 'antd';
+import { Card, Form, Input, Button, Typography, message, Space, Divider, Alert } from 'antd';
 import { UserOutlined, LockOutlined, RocketOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,32 +9,44 @@ const { Title, Text } = Typography;
 
 type LoginStep = 'CREDENTIALS' | 'MFA_REQUIRED';
 
+/** Extract error message from Axios error */
+const getErrorMsg = (err: any, fallback: string): string => {
+    const data = err?.response?.data;
+    if (!data) return fallback;
+    if (Array.isArray(data.message)) return data.message[0] || fallback;
+    if (typeof data.message === 'string') return data.message;
+    return fallback;
+};
+
 const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<LoginStep>('CREDENTIALS');
     const [mfaToken, setMfaToken] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
     const navigate = useNavigate();
     const setAuth = useAuthStore((s) => s.setAuth);
 
     const onLoginSubmit = async (values: { username: string; password: string }) => {
         setLoading(true);
+        setErrorMsg('');
         try {
             const res = await api.post('/auth/login', values);
             const data = res.data?.data ?? res.data;
 
             if (data.requires_mfa) {
-                // MFA required → show TOTP input
                 setMfaToken(data.mfa_token);
                 setStep('MFA_REQUIRED');
-                message.info('Masukkan kode dari Google Authenticator');
+                setErrorMsg('');
+                message.info('Masukkan kode 6-digit dari Google Authenticator');
             } else {
-                // No MFA → direct login
                 setAuth(data.user, data.access_token);
                 message.success(`Selamat datang, ${data.user.full_name}!`);
                 navigate('/dashboard');
             }
         } catch (err: any) {
-            message.error(err.response?.data?.message?.[0] || err.response?.data?.message || 'Login gagal');
+            const msg = getErrorMsg(err, 'Username atau password salah');
+            setErrorMsg(msg);
+            message.error(msg);
         } finally {
             setLoading(false);
         }
@@ -42,6 +54,7 @@ const LoginPage: React.FC = () => {
 
     const onMfaSubmit = async (values: { totp_code: string }) => {
         setLoading(true);
+        setErrorMsg('');
         try {
             const res = await api.post('/auth/verify-mfa', {
                 mfa_token: mfaToken,
@@ -52,7 +65,9 @@ const LoginPage: React.FC = () => {
             message.success(`Selamat datang, ${data.user.full_name}!`);
             navigate('/dashboard');
         } catch (err: any) {
-            message.error(err.response?.data?.message?.[0] || err.response?.data?.message || 'Kode MFA salah');
+            const msg = getErrorMsg(err, 'Kode MFA salah. Coba lagi.');
+            setErrorMsg(msg);
+            message.error(msg);
         } finally {
             setLoading(false);
         }
@@ -74,6 +89,18 @@ const LoginPage: React.FC = () => {
                     <br />
                     <Text type="secondary" style={{ fontSize: 12 }}>PT ASABRI (Persero)</Text>
                 </div>
+
+                {/* Error Alert — always visible when there's an error */}
+                {errorMsg && (
+                    <Alert
+                        message={errorMsg}
+                        type="error"
+                        showIcon
+                        closable
+                        onClose={() => setErrorMsg('')}
+                        style={{ marginBottom: 16 }}
+                    />
+                )}
 
                 {step === 'CREDENTIALS' && (
                     <Form onFinish={onLoginSubmit} layout="vertical" size="large">
@@ -114,7 +141,7 @@ const LoginPage: React.FC = () => {
                                     <Button type="primary" htmlType="submit" loading={loading} block style={{ height: 44 }}>
                                         Verifikasi
                                     </Button>
-                                    <Button type="link" block onClick={() => { setStep('CREDENTIALS'); setMfaToken(''); }}>
+                                    <Button type="link" block onClick={() => { setStep('CREDENTIALS'); setMfaToken(''); setErrorMsg(''); }}>
                                         ← Kembali ke login
                                     </Button>
                                 </Space>

@@ -6,7 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { VerifyMfaDto, ConfirmMfaDto } from './dto/verify-mfa.dto';
 import { ChangePasswordDto, ResetPasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
-import { generateSecret, verify as verifyTotp, generateURI } from 'otplib';
+import { generateSecret, verifySync, generateURI } from 'otplib';
 import * as QRCode from 'qrcode';
 
 @Injectable()
@@ -83,8 +83,8 @@ export class AuthService {
             throw new UnauthorizedException('User tidak ditemukan');
         }
 
-        const valid = verifyTotp({ token: dto.totp_code, secret: user.mfa_secret });
-        if (!valid) {
+        const result = verifySync({ token: dto.totp_code, secret: user.mfa_secret });
+        if (!result.valid) {
             throw new UnauthorizedException('Kode MFA salah. Coba lagi.');
         }
 
@@ -127,8 +127,8 @@ export class AuthService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user || !user.mfa_secret) throw new BadRequestException('Setup MFA terlebih dahulu');
 
-        const valid = verifyTotp({ token: dto.totp_code, secret: user.mfa_secret });
-        if (!valid) {
+        const result = verifySync({ token: dto.totp_code, secret: user.mfa_secret });
+        if (!result.valid) {
             throw new BadRequestException('Kode MFA salah. Pastikan waktu perangkat sinkron.');
         }
 

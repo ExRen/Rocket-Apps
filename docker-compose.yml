@@ -7,8 +7,8 @@ services:
     container_name: rocket_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: rocket_user
-      POSTGRES_PASSWORD: rocket_pass
+      POSTGRES_USER: ${DB_USER:-rocket_user}
+      POSTGRES_PASSWORD: ${DB_PASS:-rocket_pass}
       POSTGRES_DB: rocket_db
     ports:
       - "5433:5432"
@@ -45,7 +45,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://rocket_user:rocket_pass@postgres:5432/rocket_db?schema=public"
+      DATABASE_URL: "postgresql://${DB_USER:-rocket_user}:${DB_PASS:-rocket_pass}@postgres:5432/rocket_db?schema=public"
     profiles: [ "studio" ]
 
 volumes:

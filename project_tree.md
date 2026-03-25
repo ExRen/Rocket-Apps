@@ -407,21 +407,21 @@ VITE_APP_NAME=ROCKET — PT ASABRI
 DATABASE_URL="postgresql://rocket_user:rocket_pass@localhost:5432/rocket_db?schema=public"
 
 # JWT Secret — ganti dengan string random panjang di production
-JWT_SECRET="rocket-asabri-super-secret-key-ganti-ini-production"
+JWT_SECRET="rocket-super-secret-key-ganti-ini-production"
 JWT_EXPIRES_IN="8h"
 
-# Konfigurasi LDAP Active Directory ASABRI
-LDAP_URL="ldap://ad.asabri.co.id"
-LDAP_BASE_DN="DC=asabri,DC=co,DC=id"
-LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=asabri,DC=co,DC=id"
-LDAP_BIND_PASSWORD="password-service-account"
+# Konfigurasi LDAP Active Directory
+LDAP_URL="ldap://ad.yourcompany.co.id"
+LDAP_BASE_DN="DC=yourcompany,DC=co,DC=id"
+LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=yourcompany,DC=co,DC=id"
+LDAP_BIND_PASSWORD="your-ldap-service-account-password"
 
 # Konfigurasi SMTP untuk kirim email notifikasi
-SMTP_HOST="mail.asabri.co.id"
+SMTP_HOST="mail.yourcompany.co.id"
 SMTP_PORT=587
-SMTP_USER="noreply@asabri.co.id"
-SMTP_PASS="password-email"
-SMTP_FROM="ROCKET ASABRI <noreply@asabri.co.id>"
+SMTP_USER="noreply@yourcompany.co.id"
+SMTP_PASS="your-email-password"
+SMTP_FROM="ROCKET APP <noreply@yourcompany.co.id>"
 
 # Redis untuk cache
 REDIS_HOST="localhost"

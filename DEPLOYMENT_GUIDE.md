@@ -97,7 +97,7 @@ pm2 serve apps/frontend/dist 5173 --name rocket-frontend --spa
 ```nginx
 server {
     listen 80;
-    server_name rocket.asabri.co.id;
+    server_name rocket.yourcompany.co.id;
 
     # Frontend
     location / {
@@ -125,7 +125,7 @@ User masukkan username + password
 LdapService.authenticate()
         ↓
     ┌──────────────┐
-    │ Bind ke AD   │ ← username@asabri.co.id + password
+    │ Bind ke AD   │ ← username@yourcompany.co.id + password
     │ (verifikasi) │
     └──────────────┘
         ↓ (berhasil)
@@ -147,26 +147,26 @@ Di file `apps/backend/.env`:
 
 ```env
 # URL server Active Directory
-LDAP_URL="ldap://ad.asabri.co.id"
+LDAP_URL="ldap://ad.yourcompany.co.id"
 
 # Base DN — root dari directory tree
-LDAP_BASE_DN="DC=asabri,DC=co,DC=id"
+LDAP_BASE_DN="DC=yourcompany,DC=co,DC=id"
 
 # Format DN untuk user login
-LDAP_USER_DN_FORMAT="{username}@asabri.co.id"
+LDAP_USER_DN_FORMAT="{username}@yourcompany.co.id"
 
 # (Opsional) Service account untuk bind awal sebelum search
-LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=asabri,DC=co,DC=id"
-LDAP_BIND_PASSWORD="password-service-account-ldap"
+LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=yourcompany,DC=co,DC=id"
+LDAP_BIND_PASSWORD="your-ldap-service-account-password"
 ```
 
 ### Cara Mendapatkan Nilai-Nilai LDAP
 
 | Variable | Cara Cari | Contoh |
 |----------|----------|--------|
-| `LDAP_URL` | Tanya tim IT / network admin. Format: `ldap://hostname` atau `ldaps://hostname:636` | `ldap://ad.asabri.co.id` |
-| `LDAP_BASE_DN` | Dari domain. `asabri.co.id` → `DC=asabri,DC=co,DC=id` | `DC=asabri,DC=co,DC=id` |
-| `LDAP_USER_DN_FORMAT` | Biasanya `{username}@domain` untuk AD | `{username}@asabri.co.id` |
+| `LDAP_URL` | Tanya tim IT / network admin. Format: `ldap://hostname` atau `ldaps://hostname:636` | `ldap://ad.yourcompany.co.id` |
+| `LDAP_BASE_DN` | Dari domain. `yourcompany.co.id` → `DC=yourcompany,DC=co,DC=id` | `DC=yourcompany,DC=co,DC=id` |
+| `LDAP_USER_DN_FORMAT` | Biasanya `{username}@domain` untuk AD | `{username}@yourcompany.co.id` |
 | `LDAP_BIND_DN` | Minta IT buat service account khusus untuk ROCKET | `CN=svc-rocket,OU=...` |
 | `LDAP_BIND_PASSWORD` | Password dari service account di atas | *(confidential)* |
 
@@ -174,10 +174,10 @@ LDAP_BIND_PASSWORD="password-service-account-ldap"
 
 ```bash
 # Test dari command line (jika ada ldapsearch)
-ldapsearch -x -H ldap://ad.asabri.co.id \
-  -D "testuser@asabri.co.id" \
+ldapsearch -x -H ldap://ad.yourcompany.co.id \
+  -D "testuser@yourcompany.co.id" \
   -w "password123" \
-  -b "DC=asabri,DC=co,DC=id" \
+  -b "DC=yourcompany,DC=co,DC=id" \
   "(sAMAccountName=testuser)" \
   mail displayName sAMAccountName
 ```
@@ -194,18 +194,18 @@ Jika LDAP tidak tersedia (development/testing), backend **otomatis fallback**:
 
 > [!TIP]
 > **Di dev mode**, cukup gunakan username dari seed data:
-> - `dwi.soelistijanto` (SUPER_USER)
-> - `okki.jatnika` (LEVEL_1)
-> - `kartika.rahmadayanti` (LEVEL_2)
-> - `andris.framono` (LEVEL_3)
+> - `user.superuser` (SUPER_USER)
+> - `user.kadiv` (LEVEL_1)
+> - `user.manager` (LEVEL_2)
+> - `user.staff1` (LEVEL_3)
 > 
 > Password: **apapun** (karena LDAP di-skip)
 
 ### Untuk Production: Checklist LDAP
 
-- [ ] Pastikan server ROCKET bisa akses `ldap://ad.asabri.co.id` (port 389 atau 636)
+- [ ] Pastikan server ROCKET bisa akses `ldap://ad.yourcompany.co.id` (port 389 atau 636)
 - [ ] Minta IT buat service account (`svc-rocket`) dengan permission **read** ke user directory
 - [ ] Test koneksi LDAP pakai `ldapsearch` atau tool seperti Apache Directory Studio
 - [ ] Update `.env` dengan credential yang benar
 - [ ] Set `NODE_ENV=production` — ini menghilangkan dev fallback (password apapun diterima)
-- [ ] Jika menggunakan LDAPS (SSL), ganti port ke 636: `ldaps://ad.asabri.co.id:636`
+- [ ] Jika menggunakan LDAPS (SSL), ganti port ke 636: `ldaps://ad.yourcompany.co.id:636`

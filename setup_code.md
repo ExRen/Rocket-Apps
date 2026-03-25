@@ -245,23 +245,23 @@ JWT_EXPIRES_IN="8h"
 # ================================================================
 # LDAP / ACTIVE DIRECTORY
 # ================================================================
-LDAP_URL="ldap://ad.asabri.co.id"
-LDAP_BASE_DN="DC=asabri,DC=co,DC=id"
-LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=asabri,DC=co,DC=id"
-LDAP_BIND_PASSWORD="password-service-account-ldap"
+LDAP_URL="ldap://ad.yourcompany.co.id"
+LDAP_BASE_DN="DC=yourcompany,DC=co,DC=id"
+LDAP_BIND_DN="CN=svc-rocket,OU=ServiceAccounts,DC=yourcompany,DC=co,DC=id"
+LDAP_BIND_PASSWORD="your-ldap-service-account-password"
 # Format user DN untuk bind saat login
-# Contoh: {username}@asabri.co.id atau CN={username},OU=Users,DC=asabri,DC=co,DC=id
-LDAP_USER_DN_FORMAT="{username}@asabri.co.id"
+# Contoh: {username}@yourcompany.co.id atau CN={username},OU=Users,DC=yourcompany,DC=co,DC=id
+LDAP_USER_DN_FORMAT="{username}@yourcompany.co.id"
 
 # ================================================================
 # SMTP — Email Notifikasi
 # ================================================================
-SMTP_HOST="mail.asabri.co.id"
+SMTP_HOST="mail.yourcompany.co.id"
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER="noreply@asabri.co.id"
-SMTP_PASS="password-email-asabri"
-SMTP_FROM="ROCKET ASABRI <noreply@asabri.co.id>"
+SMTP_USER="noreply@yourcompany.co.id"
+SMTP_PASS="your-email-password"
+SMTP_FROM="ROCKET APP <noreply@yourcompany.co.id>"
 
 # ================================================================
 # REDIS — Cache & Session
@@ -588,7 +588,7 @@ export class LdapService {
       const userDnFormat = this.configService.get('LDAP_USER_DN_FORMAT');
       const baseDn       = this.configService.get('LDAP_BASE_DN');
 
-      // Format user DN — contoh: budi.santoso@asabri.co.id
+      // Format user DN — contoh: budi.santoso@yourcompany.co.id
       const userDn = userDnFormat.replace('{username}', username);
 
       // Buat koneksi LDAP baru untuk setiap percobaan login
@@ -659,10 +659,10 @@ Sebelum deployment, test koneksi LDAP menggunakan `ldapsearch` dari terminal:
 ```bash
 # Test koneksi dan autentikasi ke AD
 ldapsearch \
-  -H ldap://ad.asabri.co.id \
-  -D "testuser@asabri.co.id" \
+  -H ldap://ad.yourcompany.co.id \
+  -D "testuser@yourcompany.co.id" \
   -w "passworduser" \
-  -b "DC=asabri,DC=co,DC=id" \
+  -b "DC=yourcompany,DC=co,DC=id" \
   "(sAMAccountName=testuser)" \
   mail displayName sAMAccountName
 ```

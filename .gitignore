@@ -12,6 +12,7 @@ build/
 .env
 .env.local
 .env.production
+.env.*.local
 !.env.example
 
 # IDE
@@ -39,3 +40,10 @@ uploads/
 
 # Coverage
 coverage/
+
+# SSL Certificates
+nginx/ssl/
+
+# Gemini
+.gemini/
+

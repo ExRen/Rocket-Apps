@@ -8,7 +8,7 @@ export class CreateLinkDto {
     @IsNotEmpty()
     nama_link: string;
 
-    @ApiProperty({ example: 'https://asabricloud.sharepoint.com' })
+    @ApiProperty({ example: 'https://yourcloud.sharepoint.com' })
     @IsString()
     @IsNotEmpty()
     url: string;

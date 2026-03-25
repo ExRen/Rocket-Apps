@@ -22,7 +22,8 @@ const ProfilePage: React.FC = () => {
     const handleChangePassword = async (values: any) => {
         setPwLoading(true);
         try {
-            await api.post('/auth/change-password', values);
+            const { confirm_password, ...payload } = values;
+            await api.post('/auth/change-password', payload);
             message.success('Password berhasil diubah');
             form.resetFields();
         } catch (err: any) {
