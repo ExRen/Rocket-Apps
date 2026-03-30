@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS:-rocket_pass}
       POSTGRES_DB: rocket_db
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - rocket_postgres_data:/var/lib/postgresql/data
     healthcheck:
